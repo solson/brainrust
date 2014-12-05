@@ -75,6 +75,12 @@ fn execute<R: Reader, W: Writer>(program: Vec<Op>, input: &mut R, output: &mut W
     Ok(())
 }
 
+fn read_file(name: &str) -> IoResult<String> {
+    File::open(&Path::new(name)).and_then(|mut file| {
+        file.read_to_string()
+    })
+}
+
 fn main() {
     let args = os::args();
     if args.len() != 2 {
@@ -82,6 +88,7 @@ fn main() {
         return;
     }
 
-    let program = File::open(&Path::new(&args[1])).unwrap().read_to_string().unwrap();
-    execute(parse(program.as_slice()).unwrap(), &mut stdin(), &mut stdout()).unwrap();
+    read_file(args[1].as_slice()).and_then(|program| {
+        execute(parse(program.as_slice()).unwrap(), &mut stdin(), &mut stdout())
+    }).unwrap();
 }
