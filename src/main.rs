@@ -63,7 +63,10 @@ fn execute<R: Reader, W: Writer>(program: Vec<Op>, input: &mut R, output: &mut W
             Op::Dec   => tape[dp] -= 1,
             Op::Left  => dp -= 1,
             Op::Right => dp += 1,
-            Op::Read  => tape[dp] = try!(input.read_byte()),
+            Op::Read  => match input.read_byte() {
+                Ok(byte) => tape[dp] = byte,
+                Err(_)   => {} // Do nothing on EOF.
+            },
             Op::Write => try!(output.write_u8(tape[dp])),
             Op::LoopStart(loop_end) => if tape[dp] == 0 { ip = loop_end; },
             Op::LoopEnd(loop_start) => if tape[dp] != 0 { ip = loop_start; },
