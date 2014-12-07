@@ -145,3 +145,14 @@ fn main() {
         execute(parse(program.as_slice()).unwrap(), &mut stdin(), &mut stdout(), &mut tape)
     }).unwrap();
 }
+
+#[test]
+fn hello_world() {
+    use std::io::util::NullReader;
+
+    let program = include_str!("../hello_world.bf");
+    let mut output = Vec::new();
+    let mut tape = SimpleTape::new(1024);
+    execute(parse(program).unwrap(), &mut NullReader, &mut output, &mut tape).unwrap();
+    assert_eq!(output.as_slice(), b"Hello World!\n");
+}
