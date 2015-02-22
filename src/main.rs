@@ -1,7 +1,10 @@
-use std::io::{IoResult, Reader, Writer, stdin, stdout};
-use std::io::fs::File;
+#![feature(core, io, os, path)]
+
+use std::iter::repeat;
+use std::old_io::{IoResult, Reader, Writer, stdin, stdout};
+use std::old_io::fs::File;
+use std::old_path::posix::Path;
 use std::os;
-use std::path::posix::Path;
 
 // A brainfuck instruction.
 enum Op {
@@ -13,13 +16,13 @@ enum Op {
     Write, // .
 
     // Each loop instruction stores the index of its matching loop instruction.
-    LoopStart(uint), // [
-    LoopEnd(uint),   // ]
+    LoopStart(usize), // [
+    LoopEnd(usize),   // ]
 }
 
 // Parse errors contain the index of the offending character in the original program source.
-#[deriving(PartialEq, Eq, Show)]
-enum ParseError { UnmatchedLoopStart(uint), UnmatchedLoopEnd(uint) }
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ParseError { UnmatchedLoopStart(usize), UnmatchedLoopEnd(usize) }
 
 fn parse(program: &str) -> Result<Vec<Op>, ParseError> {
     let mut ops        = Vec::new();
@@ -62,13 +65,13 @@ trait Tape {
 }
 
 struct SimpleTape {
-    pos: uint,
+    pos: usize,
     data: Vec<u8>,
 }
 
 impl SimpleTape {
-    fn new(size: uint) -> SimpleTape {
-        SimpleTape { pos: 0, data: Vec::from_elem(size, 0u8) }
+    fn new(size: usize) -> SimpleTape {
+        SimpleTape { pos: 0, data: repeat(0u8).take(size).collect() }
     }
 }
 
@@ -82,13 +85,13 @@ impl Tape for SimpleTape {
 }
 
 struct CircularTape {
-    pos: uint,
+    pos: usize,
     data: Vec<u8>,
 }
 
 impl CircularTape {
-    fn new(size: uint) -> CircularTape {
-        CircularTape { pos: 0, data: Vec::from_elem(size, 0u8) }
+    fn new(size: usize) -> CircularTape {
+        CircularTape { pos: 0, data: repeat(0u8).take(size).collect() }
     }
 }
 
@@ -103,7 +106,7 @@ impl Tape for CircularTape {
 
 fn execute<R: Reader, W: Writer, T: Tape>(program: Vec<Op>, input: &mut R, output: &mut W,
                                           tape: &mut T) -> IoResult<()> {
-    let mut ip = 0u; // Instruction pointer.
+    let mut ip: usize = 0; // Instruction pointer.
 
     while ip < program.len() {
         match program[ip] {
