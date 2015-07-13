@@ -157,7 +157,6 @@ fn hello_world() {
     let program = include_str!("../hello_world.bf");
     let mut output = Vec::new();
     let mut tape = SimpleTape::new(1024);
-    let mut empty_input: &[u8] = &[0; 0];
-    execute(parse(program).unwrap(), &mut empty_input, &mut output, &mut tape).unwrap();
+    execute(parse(program).unwrap(), &mut std::io::empty(), &mut output, &mut tape).unwrap();
     assert_eq!(output, b"Hello World!\n");
 }
