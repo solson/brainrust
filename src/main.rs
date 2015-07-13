@@ -1,10 +1,8 @@
-#![feature(core, io, os, path)]
-
+use std::env;
+use std::fs::File;
+use std::io::{self, Read, Write, stdin, stdout};
 use std::iter::repeat;
-use std::old_io::{IoResult, Reader, Writer, stdin, stdout};
-use std::old_io::fs::File;
-use std::old_path::posix::Path;
-use std::os;
+use std::path::Path;
 
 // A brainfuck instruction.
 enum Op {
@@ -25,7 +23,7 @@ enum Op {
 enum ParseError { UnmatchedLoopStart(usize), UnmatchedLoopEnd(usize) }
 
 fn parse(program: &str) -> Result<Vec<Op>, ParseError> {
-    let mut ops        = Vec::new();
+    let mut ops = Vec::new();
     let mut loop_stack = Vec::new();
 
     for (i, op) in program.chars().enumerate() {
@@ -104,8 +102,8 @@ impl Tape for CircularTape {
     fn write(&mut self, byte: u8) { self.data[self.pos] = byte; }
 }
 
-fn execute<R: Reader, W: Writer, T: Tape>(program: Vec<Op>, input: &mut R, output: &mut W,
-                                          tape: &mut T) -> IoResult<()> {
+fn execute<R: Read, W: Write, T: Tape>(program: Vec<Op>, input: &mut R, output: &mut W,
+                                          tape: &mut T) -> io::Result<()> {
     let mut ip: usize = 0; // Instruction pointer.
 
     while ip < program.len() {
@@ -114,11 +112,14 @@ fn execute<R: Reader, W: Writer, T: Tape>(program: Vec<Op>, input: &mut R, outpu
             Op::Dec   => tape.dec(),
             Op::Left  => tape.go_left(),
             Op::Right => tape.go_right(),
-            Op::Read  => match input.read_byte() {
-                Ok(byte) => tape.write(byte),
-                Err(_)   => {} // Do nothing on EOF.
+            Op::Read  => {
+                let mut byte = [0u8; 1];
+                match input.read(&mut byte) {
+                    Ok(_)  => tape.write(byte[0]),
+                    Err(_) => {} // Do nothing on EOF.
+                }
             },
-            Op::Write => try!(output.write_u8(tape.read())),
+            Op::Write => { try!(output.write(&[tape.read(); 1])); },
             Op::LoopStart(loop_end) => if tape.read() == 0 { ip = loop_end; },
             Op::LoopEnd(loop_start) => if tape.read() != 0 { ip = loop_start; },
         }
@@ -129,23 +130,25 @@ fn execute<R: Reader, W: Writer, T: Tape>(program: Vec<Op>, input: &mut R, outpu
     Ok(())
 }
 
-fn read_file(name: &str) -> IoResult<String> {
+fn read_file(name: &str) -> io::Result<String> {
     File::open(&Path::new(name)).and_then(|mut file| {
-        file.read_to_string()
+        let mut s = String::new();
+        try!(file.read_to_string(&mut s));
+        Ok(s)
     })
 }
 
 fn main() {
-    let args = os::args();
+    let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        println!("usage: {} <file>", os::args()[0]);
+        println!("usage: {} <file>", args[0]);
         return;
     }
 
     let mut tape = SimpleTape::new(1024);
 
-    read_file(args[1].as_slice()).and_then(|program| {
-        execute(parse(program.as_slice()).unwrap(), &mut stdin(), &mut stdout(), &mut tape)
+    read_file(&args[1]).and_then(|program| {
+        execute(parse(&program).unwrap(), &mut stdin(), &mut stdout(), &mut tape)
     }).unwrap();
 }
 
